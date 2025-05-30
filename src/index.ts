@@ -32,6 +32,10 @@ interface Interaction {
 
 let interactions: Interaction[] = [];
 
+// Track mouse position for smooth cursor trails
+let lastMouseX = 100;
+let lastMouseY = 100;
+
 // Ensure videos directory exists
 const videosDir = path.resolve(__dirname, "..", "videos");
 fs.ensureDirSync(videosDir);
@@ -82,22 +86,48 @@ async function injectCursorTrail(currentPage: playwright.Page): Promise<void> {
     `;
     document.head.appendChild(style);
 
-    // Add mousemove listener for trail effect
-    document.addEventListener('mousemove', (event) => {
+    // Create global function to add cursor trail programmatically
+    (window as any).addCursorTrail = (x: number, y: number, actionType: string = 'move') => {
       const trailDot = document.createElement('div');
       trailDot.classList.add('cursor-trail');
       document.body.appendChild(trailDot);
 
-      trailDot.style.left = `${event.clientX}px`;
-      trailDot.style.top = `${event.clientY}px`;
+      trailDot.style.left = `${x}px`;
+      trailDot.style.top = `${y}px`;
+
+      // Add action-specific styling
+      if (actionType === 'click') {
+        trailDot.classList.add('clicking');
+      } else if (actionType === 'type') {
+        trailDot.classList.add('typing');
+      }
 
       // Fade out and remove after delay
       setTimeout(() => {
         trailDot.style.opacity = '0';
         setTimeout(() => trailDot.remove(), 300);
-      }, 100);
-    });
+      }, actionType === 'click' || actionType === 'type' ? 500 : 150);
+    };
   });
+}
+
+// --- Helper function to create visual trail during mouse movement ---
+async function createCursorTrail(currentPage: playwright.Page, fromX: number, fromY: number, toX: number, toY: number, steps: number = 20): Promise<void> {
+  const stepX = (toX - fromX) / steps;
+  const stepY = (toY - fromY) / steps;
+
+  for (let i = 0; i <= steps; i++) {
+    const currentX = fromX + (stepX * i);
+    const currentY = fromY + (stepY * i);
+    
+    // Add trail dot at current position
+    await currentPage.evaluate((coords) => {
+      (window as any).addCursorTrail(coords.x, coords.y, 'move');
+    }, { x: currentX, y: currentY });
+    
+    // Small delay between trail dots
+    await currentPage.waitForTimeout(20);
+  }
 }
 
 // --- Helper function to move cursor with visual trail ---
@@ -111,25 +141,23 @@ async function moveCursorToElement(currentPage: playwright.Page, selector: strin
   const targetX = elementBox.x + elementBox.width / 2;
   const targetY = elementBox.y + elementBox.height / 2;
 
-  // Move mouse in steps to create smooth trail
-  await currentPage.mouse.move(targetX, targetY, { steps: 20 });
+  // Create visual trail from last position to target
+  await createCursorTrail(currentPage, lastMouseX, lastMouseY, targetX, targetY, 15);
   
-  // Add action-specific visual feedback
-  await currentPage.evaluate((actionType) => {
-    const lastTrail = document.querySelector('.cursor-trail:last-child');
-    if (lastTrail) {
-      if (actionType === 'click') {
-        lastTrail.classList.add('clicking');
-        setTimeout(() => lastTrail.classList.remove('clicking'), 500);
-      } else if (actionType === 'type') {
-        lastTrail.classList.add('typing');
-        setTimeout(() => lastTrail.classList.remove('typing'), 1000);
-      }
-    }
-  }, action);
+  // Move the actual Playwright mouse (without steps to avoid double trail)
+  await currentPage.mouse.move(targetX, targetY);
+  
+  // Update tracked position
+  lastMouseX = targetX;
+  lastMouseY = targetY;
+  
+  // Add action-specific visual feedback at target
+  await currentPage.evaluate((data) => {
+    (window as any).addCursorTrail(data.x, data.y, data.action);
+  }, { x: targetX, y: targetY, action });
 
   // Brief pause to show the cursor at target
-  await currentPage.waitForTimeout(300);
+  await currentPage.waitForTimeout(400);
 }
 
 // --- Helper function to generate ARIA snapshot ---
@@ -269,6 +297,8 @@ server.tool(
     interactions = [];
     demoDescription = description;
     startUrl = url;
+    lastMouseX = 100;
+    lastMouseY = 100;
 
     const sanitizedDescription = description.replace(/[^a-z0-9_.-]/gi, '_').slice(0, 50);
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
@@ -299,8 +329,13 @@ server.tool(
       // Inject cursor trail system
       await injectCursorTrail(page);
       
-      // Show initial cursor position
-      await page.mouse.move(100, 100, { steps: 10 });
+      // Show initial cursor position with trail
+      await page.evaluate(() => {
+        (window as any).addCursorTrail(100, 100, 'move');
+      });
+      await page.mouse.move(100, 100);
+      lastMouseX = 100;
+      lastMouseY = 100;
       await page.waitForTimeout(500);
 
       // Track initial navigation
