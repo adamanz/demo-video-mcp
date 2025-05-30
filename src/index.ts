@@ -64,7 +64,21 @@ async function injectCursorTrail(currentPage: playwright.Page): Promise<void> {
         z-index: 999999;
         transform: translate(-50%, -50%);
         box-shadow: 0 0 15px rgba(255,0,0,0.6);
-        transition: opacity 0.3s ease, transform 0.3s ease;
+        transition: opacity 1s ease, transform 0.3s ease;
+      }
+      
+      .cursor-current {
+        position: fixed;
+        width: 24px;
+        height: 24px;
+        background: radial-gradient(circle, rgba(255,0,0,1) 0%, rgba(255,0,0,0.8) 40%, rgba(255,0,0,0.4) 100%);
+        border: 3px solid white;
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 999999;
+        transform: translate(-50%, -50%);
+        box-shadow: 0 0 20px rgba(255,0,0,0.8);
+        transition: all 0.2s ease;
       }
       
       .cursor-trail.clicking {
@@ -79,6 +93,32 @@ async function injectCursorTrail(currentPage: playwright.Page): Promise<void> {
         animation: typePulse 0.5s ease infinite alternate;
       }
       
+      .click-indicator {
+        position: fixed;
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(0,150,255,0.8);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 999998;
+        transform: translate(-50%, -50%);
+        background: rgba(0,150,255,0.2);
+        box-shadow: 0 0 25px rgba(0,150,255,0.6);
+      }
+      
+      .type-indicator {
+        position: fixed;
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(0,255,0,0.8);
+        border-radius: 50%;
+        pointer-events: none;
+        z-index: 999998;
+        transform: translate(-50%, -50%);
+        background: rgba(0,255,0,0.2);
+        box-shadow: 0 0 25px rgba(0,255,0,0.6);
+      }
+      
       @keyframes typePulse {
         0% { transform: translate(-50%, -50%) scale(1); }
         100% { transform: translate(-50%, -50%) scale(1.2); }
@@ -86,7 +126,7 @@ async function injectCursorTrail(currentPage: playwright.Page): Promise<void> {
     `;
     document.head.appendChild(style);
 
-    // Create global function to add cursor trail programmatically
+    // Create global functions for cursor management
     (window as any).addCursorTrail = (x: number, y: number, actionType: string = 'move') => {
       const trailDot = document.createElement('div');
       trailDot.classList.add('cursor-trail');
@@ -102,11 +142,44 @@ async function injectCursorTrail(currentPage: playwright.Page): Promise<void> {
         trailDot.classList.add('typing');
       }
 
-      // Fade out and remove after delay
+      // Fade out and remove after longer delay
       setTimeout(() => {
         trailDot.style.opacity = '0';
-        setTimeout(() => trailDot.remove(), 300);
-      }, actionType === 'click' || actionType === 'type' ? 500 : 150);
+        setTimeout(() => trailDot.remove(), 1000);
+      }, actionType === 'click' || actionType === 'type' ? 2000 : 800);
+    };
+
+    // Function to update persistent cursor position
+    (window as any).updateCurrentCursor = (x: number, y: number) => {
+      let cursor = document.querySelector('.cursor-current') as HTMLElement;
+      if (!cursor) {
+        cursor = document.createElement('div');
+        cursor.classList.add('cursor-current');
+        document.body.appendChild(cursor);
+      }
+      cursor.style.left = `${x}px`;
+      cursor.style.top = `${y}px`;
+    };
+
+    // Function to add permanent action indicators
+    (window as any).addActionIndicator = (x: number, y: number, actionType: string) => {
+      const indicator = document.createElement('div');
+      if (actionType === 'click') {
+        indicator.classList.add('click-indicator');
+      } else if (actionType === 'type') {
+        indicator.classList.add('type-indicator');
+      }
+      
+      if (indicator.className) {
+        document.body.appendChild(indicator);
+        indicator.style.left = `${x}px`;
+        indicator.style.top = `${y}px`;
+        
+        // Keep permanent indicators visible longer
+        setTimeout(() => {
+          indicator.style.opacity = '0.5';
+        }, 5000);
+      }
     };
   });
 }
@@ -123,10 +196,11 @@ async function createCursorTrail(currentPage: playwright.Page, fromX: number, fr
     // Add trail dot at current position
     await currentPage.evaluate((coords) => {
       (window as any).addCursorTrail(coords.x, coords.y, 'move');
+      (window as any).updateCurrentCursor(coords.x, coords.y);
     }, { x: currentX, y: currentY });
     
     // Small delay between trail dots
-    await currentPage.waitForTimeout(20);
+    await currentPage.waitForTimeout(30);
   }
 }
 
@@ -154,10 +228,15 @@ async function moveCursorToElement(currentPage: playwright.Page, selector: strin
   // Add action-specific visual feedback at target
   await currentPage.evaluate((data) => {
     (window as any).addCursorTrail(data.x, data.y, data.action);
+    (window as any).updateCurrentCursor(data.x, data.y);
+    // Add permanent indicator for clicks and types
+    if (data.action === 'click' || data.action === 'type') {
+      (window as any).addActionIndicator(data.x, data.y, data.action);
+    }
   }, { x: targetX, y: targetY, action });
 
   // Brief pause to show the cursor at target
-  await currentPage.waitForTimeout(400);
+  await currentPage.waitForTimeout(600);
 }
 
 // --- Helper function to generate ARIA snapshot ---
@@ -332,11 +411,12 @@ server.tool(
       // Show initial cursor position with trail
       await page.evaluate(() => {
         (window as any).addCursorTrail(100, 100, 'move');
+        (window as any).updateCurrentCursor(100, 100);
       });
       await page.mouse.move(100, 100);
       lastMouseX = 100;
       lastMouseY = 100;
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(800);
 
       // Track initial navigation
       interactions.push({
