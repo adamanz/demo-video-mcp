@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "playwright_recorder": {
+      "command": "node",
+      "args": [
+        "/tmp/playwright-demo-recorder-mcp/build/index.js"
+      ],
+      "workingDirectory": "/tmp/playwright-demo-recorder-mcp"
+    }
+  }
+}
