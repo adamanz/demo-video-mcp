@@ -95,15 +95,31 @@ async function injectCursorTrail(currentPage: playwright.Page): Promise<void> {
       
       .click-indicator {
         position: fixed;
-        width: 40px;
-        height: 40px;
-        border: 3px solid rgba(0,150,255,0.8);
+        width: 50px;
+        height: 50px;
+        border: 4px solid rgba(0,150,255,1);
         border-radius: 50%;
         pointer-events: none;
         z-index: 999998;
         transform: translate(-50%, -50%);
-        background: rgba(0,150,255,0.2);
-        box-shadow: 0 0 25px rgba(0,150,255,0.6);
+        background: rgba(0,150,255,0.3);
+        box-shadow: 0 0 30px rgba(0,150,255,0.8), inset 0 0 20px rgba(0,150,255,0.3);
+        animation: clickGlow 0.5s ease-out;
+      }
+      
+      @keyframes clickGlow {
+        0% { 
+          transform: translate(-50%, -50%) scale(0.5);
+          opacity: 0;
+        }
+        50% {
+          transform: translate(-50%, -50%) scale(1.2);
+          opacity: 1;
+        }
+        100% {
+          transform: translate(-50%, -50%) scale(1);
+          opacity: 0.9;
+        }
       }
       
       .type-indicator {
@@ -175,10 +191,29 @@ async function injectCursorTrail(currentPage: playwright.Page): Promise<void> {
         indicator.style.left = `${x}px`;
         indicator.style.top = `${y}px`;
         
-        // Keep permanent indicators visible longer
+        // Keep permanent indicators visible much longer
         setTimeout(() => {
-          indicator.style.opacity = '0.5';
-        }, 5000);
+          indicator.style.opacity = '0.7';
+        }, 10000);
+        
+        // Add a number label to show click order
+        const clickCount = document.querySelectorAll('.click-indicator').length;
+        if (actionType === 'click') {
+          const label = document.createElement('div');
+          label.textContent = clickCount.toString();
+          label.style.cssText = `
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+            pointer-events: none;
+          `;
+          indicator.appendChild(label);
+        }
       }
     };
   });
@@ -528,6 +563,46 @@ server.tool(
     try {
       // Move cursor to element with visual trail before clicking
       await moveCursorToElement(page, selector, 'click');
+      
+      // Get exact click coordinates
+      const elementBox = await page.locator(selector).boundingBox();
+      const clickX = elementBox!.x + elementBox!.width / 2;
+      const clickY = elementBox!.y + elementBox!.height / 2;
+      
+      // Add immediate click visual effect
+      await page.evaluate((coords) => {
+        // Create immediate click ripple effect
+        const ripple = document.createElement('div');
+        ripple.style.cssText = `
+          position: fixed;
+          left: ${coords.x}px;
+          top: ${coords.y}px;
+          width: 60px;
+          height: 60px;
+          border: 3px solid rgba(255,255,0,0.9);
+          border-radius: 50%;
+          pointer-events: none;
+          z-index: 999999;
+          transform: translate(-50%, -50%) scale(0);
+          animation: clickRipple 0.6s ease-out;
+        `;
+        
+        // Add ripple animation CSS if not exists
+        if (!document.querySelector('#click-ripple-style')) {
+          const style = document.createElement('style');
+          style.id = 'click-ripple-style';
+          style.innerHTML = `
+            @keyframes clickRipple {
+              0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+              100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+            }
+          `;
+          document.head.appendChild(style);
+        }
+        
+        document.body.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 600);
+      }, { x: clickX, y: clickY });
       
       await page.locator(selector).click();
       await page.waitForTimeout(500); // Allow UI to update
