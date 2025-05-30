@@ -569,232 +569,59 @@ server.tool(
       const clickX = elementBox!.x + elementBox!.width / 2;
       const clickY = elementBox!.y + elementBox!.height / 2;
       
-      // Add pre-click indicator to show where we're about to click
-      await page.evaluate((coords) => {
-        console.log('Adding pre-click indicator at:', coords.x, coords.y);
-        
-        const preClick = document.createElement('div');
-        preClick.style.cssText = `
-          position: fixed !important;
-          left: ${coords.x}px;
-          top: ${coords.y}px;
-          width: 120px;
-          height: 120px;
-          border: 6px dashed rgba(255,165,0,1);
-          border-radius: 50%;
-          background: rgba(255,165,0,0.2);
-          z-index: 2147483647;
-          pointer-events: none;
-          transform: translate(-50%, -50%);
-          animation: preClickBlink 0.5s ease-in-out 3;
-          box-shadow: 0 0 40px rgba(255,165,0,0.8);
-        `;
-        
-        // Add pre-click animation
-        if (!document.querySelector('#pre-click-style')) {
+      // Add simple, clean click indicator
+      await page.evaluate((coords) => {        
+        // Add simple click effect style if not exists
+        if (!document.querySelector('#simple-click-style')) {
           const style = document.createElement('style');
-          style.id = 'pre-click-style';
+          style.id = 'simple-click-style';
           style.innerHTML = `
-            @keyframes preClickBlink {
-              0% { opacity: 0.3; transform: translate(-50%, -50%) scale(0.8); }
-              50% { opacity: 1; transform: translate(-50%, -50%) scale(1.1); }
-              100% { opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
-            }
-          `;
-          document.head.appendChild(style);
-        }
-        
-        document.body.appendChild(preClick);
-        
-        // Remove pre-click indicator after delay
-        setTimeout(() => preClick.remove(), 2000);
-        
-        console.log('Pre-click indicator added successfully');
-      }, { x: clickX, y: clickY });
-      
-      // Add MULTIPLE click visual effects for maximum visibility
-      await page.evaluate((coords) => {
-        console.log('Adding click effects at:', coords.x, coords.y);
-        
-        // Add comprehensive click effect styles if not exists
-        if (!document.querySelector('#comprehensive-click-style')) {
-          const style = document.createElement('style');
-          style.id = 'comprehensive-click-style';
-          style.innerHTML = `
-            @keyframes clickRipple {
-              0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
-              100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
-            }
-            @keyframes clickPulse {
-              0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-              50% { transform: translate(-50%, -50%) scale(1.5); opacity: 0.7; }
-              100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
-            }
-            @keyframes clickFlash {
-              0% { background: rgba(255,255,0,0.8); }
-              50% { background: rgba(255,0,0,0.8); }
-              100% { background: rgba(0,255,255,0.8); }
-            }
-            .click-effect {
+            .simple-click-indicator {
               position: fixed !important;
               pointer-events: none !important;
-              z-index: 2147483647 !important;
+              z-index: 999999 !important;
+              border-radius: 50%;
+              transform: translate(-50%, -50%);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-family: Arial, sans-serif;
+              font-weight: bold;
+              color: white;
+              text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
             }
           `;
           document.head.appendChild(style);
         }
         
-        // Effect 1: Large expanding ripple
-        const ripple1 = document.createElement('div');
-        ripple1.className = 'click-effect';
-        ripple1.style.cssText = `
-          left: ${coords.x}px;
-          top: ${coords.y}px;
-          width: 80px;
-          height: 80px;
-          border: 4px solid rgba(255,255,0,1);
-          border-radius: 50%;
-          transform: translate(-50%, -50%) scale(0);
-          animation: clickRipple 1s ease-out;
-          background: rgba(255,255,0,0.2);
-          box-shadow: 0 0 50px rgba(255,255,0,0.8);
-        `;
-        document.body.appendChild(ripple1);
-        setTimeout(() => ripple1.remove(), 1000);
+        // Create simple numbered click indicator
+        const clickIndicator = document.createElement('div');
+        clickIndicator.className = 'simple-click-indicator';
+        const clickNumber = document.querySelectorAll('.simple-click-indicator').length + 1;
         
-        // Effect 2: Medium pulsing circle
-        const pulse = document.createElement('div');
-        pulse.className = 'click-effect';
-        pulse.style.cssText = `
+        clickIndicator.style.cssText = `
           left: ${coords.x}px;
           top: ${coords.y}px;
           width: 50px;
           height: 50px;
-          border: 3px solid rgba(255,0,255,1);
-          border-radius: 50%;
-          transform: translate(-50%, -50%);
-          animation: clickPulse 2s ease-in-out 3;
-          background: rgba(255,0,255,0.3);
-        `;
-        document.body.appendChild(pulse);
-        setTimeout(() => pulse.remove(), 6000);
-        
-        // Effect 3: Color-changing flash
-        const flash = document.createElement('div');
-        flash.className = 'click-effect';
-        flash.style.cssText = `
-          left: ${coords.x}px;
-          top: ${coords.y}px;
-          width: 30px;
-          height: 30px;
-          border-radius: 50%;
-          transform: translate(-50%, -50%);
-          animation: clickFlash 0.5s ease-in-out 4;
-          border: 2px solid white;
-        `;
-        document.body.appendChild(flash);
-        setTimeout(() => flash.remove(), 2000);
-        
-        // Effect 4: Permanent numbered indicator (stays longest)
-        const permanent = document.createElement('div');
-        permanent.className = 'click-effect click-permanent';
-        const clickNumber = document.querySelectorAll('.click-permanent').length + 1;
-        permanent.style.cssText = `
-          left: ${coords.x}px;
-          top: ${coords.y}px;
-          width: 60px;
-          height: 60px;
-          border: 4px solid rgba(0,150,255,1);
-          border-radius: 50%;
-          transform: translate(-50%, -50%);
-          background: rgba(0,150,255,0.4);
-          box-shadow: 0 0 30px rgba(0,150,255,0.8);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-weight: bold;
+          border: 3px solid rgba(0,150,255,0.9);
+          background: rgba(0,150,255,0.3);
+          box-shadow: 0 0 20px rgba(0,150,255,0.6);
           font-size: 16px;
-          text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
-          font-family: Arial, sans-serif;
         `;
-        permanent.textContent = clickNumber.toString();
-        document.body.appendChild(permanent);
         
-        // Keep permanent indicator visible for entire recording
+        clickIndicator.textContent = clickNumber.toString();
+        document.body.appendChild(clickIndicator);
+        
+        // Remove after exactly 3 seconds
         setTimeout(() => {
-          permanent.style.opacity = '0.6';
-        }, 15000);
+          clickIndicator.remove();
+        }, 3000);
         
-        // Force browser repaint
-        document.body.offsetHeight;
-        
-        console.log('Click effects added successfully');
-      }, { x: clickX, y: clickY });
-      
-      // Wait a moment for visual effects to render
-      await page.waitForTimeout(200);
-      
-      // Add backup click indicator using different method
-      await page.evaluate((coords) => {
-        // Create backup indicator that definitely appears
-        const backup = document.createElement('div');
-        backup.id = `click-backup-${Date.now()}`;
-        backup.style.position = 'fixed';
-        backup.style.left = coords.x + 'px';
-        backup.style.top = coords.y + 'px';
-        backup.style.width = '100px';
-        backup.style.height = '100px';
-        backup.style.border = '5px solid red';
-        backup.style.borderRadius = '50%';
-        backup.style.background = 'rgba(255,0,0,0.3)';
-        backup.style.zIndex = '999999999';
-        backup.style.pointerEvents = 'none';
-        backup.style.transform = 'translate(-50%, -50%)';
-        backup.style.fontSize = '20px';
-        backup.style.color = 'white';
-        backup.style.display = 'flex';
-        backup.style.alignItems = 'center';
-        backup.style.justifyContent = 'center';
-        backup.style.fontWeight = 'bold';
-        backup.textContent = 'CLICK';
-        
-        document.body.appendChild(backup);
-        
-        // Remove backup after long delay
-        setTimeout(() => {
-          if (document.getElementById(backup.id)) {
-            backup.remove();
-          }
-        }, 8000);
-        
-        console.log('Backup click indicator added');
       }, { x: clickX, y: clickY });
       
       await page.locator(selector).click();
-      
-      // Add post-click confirmation
-      await page.evaluate((coords) => {
-        const confirm = document.createElement('div');
-        confirm.style.cssText = `
-          position: fixed;
-          left: ${coords.x + 50}px;
-          top: ${coords.y - 30}px;
-          background: rgba(0,255,0,0.9);
-          color: white;
-          padding: 5px 10px;
-          border-radius: 5px;
-          font-weight: bold;
-          z-index: 999999999;
-          pointer-events: none;
-          font-family: Arial, sans-serif;
-        `;
-        confirm.textContent = '✓ CLICKED';
-        document.body.appendChild(confirm);
-        setTimeout(() => confirm.remove(), 3000);
-      }, { x: clickX, y: clickY });
-      
-      await page.waitForTimeout(800); // Allow UI to update and effects to show
+      await page.waitForTimeout(300); // Allow UI to update
       
       // Track click interaction
       interactions.push({
