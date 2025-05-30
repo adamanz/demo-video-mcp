@@ -33,8 +33,95 @@ interface Interaction {
 let interactions: Interaction[] = [];
 
 // Ensure videos directory exists
-const videosDir = path.resolve(process.cwd(), "videos");
+const videosDir = path.resolve(__dirname, "..", "videos");
 fs.ensureDirSync(videosDir);
+
+// --- Helper function to inject custom mouse cursor ---
+async function injectCustomCursor(currentPage: playwright.Page): Promise<void> {
+  await currentPage.evaluate(() => {
+    // Remove existing cursor if present
+    const existingCursor = document.querySelector('.playwright-custom-cursor');
+    if (existingCursor) {
+      existingCursor.remove();
+    }
+
+    // Inject cursor styles
+    const style = document.createElement('style');
+    style.innerHTML = `
+      .playwright-custom-cursor {
+        pointer-events: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 24px;
+        height: 24px;
+        background: radial-gradient(circle, rgba(255,0,0,0.9) 0%, rgba(255,0,0,0.6) 50%, rgba(255,0,0,0.2) 100%);
+        border: 2px solid white;
+        border-radius: 50%;
+        z-index: 999999;
+        transform: translate(-50%, -50%);
+        transition: all 0.1s ease;
+        box-shadow: 0 0 10px rgba(255,0,0,0.5);
+      }
+      
+      .playwright-custom-cursor.clicking {
+        animation: clickPulse 0.3s ease;
+        background: radial-gradient(circle, rgba(0,150,255,0.9) 0%, rgba(0,150,255,0.6) 50%, rgba(0,150,255,0.2) 100%);
+        box-shadow: 0 0 15px rgba(0,150,255,0.7);
+      }
+      
+      @keyframes clickPulse {
+        0% { transform: translate(-50%, -50%) scale(1); }
+        50% { transform: translate(-50%, -50%) scale(1.3); }
+        100% { transform: translate(-50%, -50%) scale(1); }
+      }
+    `;
+    document.head.appendChild(style);
+
+    // Create cursor element
+    const cursor = document.createElement('div');
+    cursor.classList.add('playwright-custom-cursor');
+    cursor.style.display = 'none';
+    document.body.appendChild(cursor);
+
+    // Store cursor reference globally
+    (window as any).playwrightCursor = cursor;
+  });
+}
+
+// --- Helper function to animate cursor to element ---
+async function animateCursorToElement(currentPage: playwright.Page, selector: string, action: 'click' | 'type' = 'click'): Promise<void> {
+  await currentPage.evaluate(async (data) => {
+    const { selector, action } = data;
+    const cursor = (window as any).playwrightCursor;
+    if (!cursor) return;
+
+    const element = document.querySelector(selector);
+    if (!element) return;
+
+    const rect = element.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    // Show cursor and animate to position
+    cursor.style.display = 'block';
+    cursor.style.left = centerX + 'px';
+    cursor.style.top = centerY + 'px';
+
+    // Wait for animation
+    await new Promise(resolve => setTimeout(resolve, 200));
+
+    // Trigger click animation
+    if (action === 'click') {
+      cursor.classList.add('clicking');
+      await new Promise(resolve => setTimeout(resolve, 300));
+      cursor.classList.remove('clicking');
+    }
+
+    // Keep cursor visible for a moment
+    await new Promise(resolve => setTimeout(resolve, 200));
+  }, { selector, action });
+}
 
 // --- Helper function to generate ARIA snapshot ---
 async function getPageSnapshot(currentPage: playwright.Page): Promise<string> {
@@ -181,7 +268,14 @@ server.tool(
 
     try {
       const browserType = playwright[browser_type || "chromium"];
-      browser = await browserType.launch({ headless: false }); // Headed for visible cursor
+      browser = await browserType.launch({ 
+        headless: false,
+        args: [
+          '--disable-blink-features=AutomationControlled',
+          '--no-first-run',
+          '--disable-default-apps'
+        ]
+      });
       context = await browser.newContext({
         recordVideo: {
           dir: videosDir,
@@ -190,7 +284,11 @@ server.tool(
         viewport: { width: 1280, height: 720 }
       });
       page = await context.newPage();
+      
       await page.goto(url, { waitUntil: 'domcontentloaded' });
+      
+      // Inject custom animated cursor
+      await injectCustomCursor(page);
 
       // Track initial navigation
       interactions.push({
@@ -250,6 +348,9 @@ server.tool(
     try {
       await page.goto(url, { waitUntil: 'domcontentloaded' });
       
+      // Re-inject custom cursor after navigation
+      await injectCustomCursor(page);
+      
       // Track navigation
       interactions.push({
         type: 'navigate',
@@ -297,6 +398,9 @@ server.tool(
       };
     }
     try {
+      // Animate cursor to element before clicking
+      await animateCursorToElement(page, selector, 'click');
+      
       await page.locator(selector).click();
       await page.waitForTimeout(500); // Allow UI to update
       
@@ -348,6 +452,9 @@ server.tool(
       };
     }
     try {
+      // Animate cursor to element before typing
+      await animateCursorToElement(page, selector, 'type');
+      
       await page.locator(selector).fill(text);
       await page.waitForTimeout(300);
       

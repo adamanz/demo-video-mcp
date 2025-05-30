@@ -1,11 +1,11 @@
-# Playwright Demo Recorder MCP Server
+# Demo Video MCP Server
 
-An MCP (Model Context Protocol) server that records browser demos and automatically generates engaging social media posts based on user interactions.
+An MCP (Model Context Protocol) server that records browser demos with animated cursor and automatically generates engaging social media posts based on user interactions.
 
 ## Features
 
-- 🎬 **Video Recording**: Records browser sessions with visible cursor
-- 🖱️ **Interaction Tracking**: Tracks clicks, navigation, and form inputs
+- 🎬 **Video Recording**: Records browser sessions with custom animated cursor
+- 🖱️ **Interactive Cursor**: Animated cursor that highlights clicks and movements
 - 📱 **Social Media Posts**: Automatically generates engaging posts based on demo interactions
 - 🎯 **Smart Summaries**: Creates narrative-driven descriptions of your demo journey
 - 🔧 **Easy Integration**: Works seamlessly with Claude Desktop
@@ -14,8 +14,8 @@ An MCP (Model Context Protocol) server that records browser demos and automatica
 
 1. Clone this repository:
 ```bash
-git clone https://github.com/yourusername/playwright-demo-recorder-mcp.git
-cd playwright-demo-recorder-mcp
+git clone https://github.com/yourusername/demo-video-mcp.git
+cd demo-video-mcp
 ```
 
 2. Install dependencies:
@@ -38,12 +38,12 @@ npm run build
 ```json
 {
   "mcpServers": {
-    "playwright_recorder": {
+    "demo_video": {
       "command": "node",
       "args": [
-        "/absolute/path/to/playwright-demo-recorder-mcp/build/index.js"
+        "/absolute/path/to/demo-video-mcp/build/index.js"
       ],
-      "workingDirectory": "/absolute/path/to/playwright-demo-recorder-mcp"
+      "workingDirectory": "/absolute/path/to/demo-video-mcp"
     }
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "playwright-demo-recorder-mcp",
+  "name": "demo-video-mcp",
   "version": "1.0.0",
   "type": "module",
   "main": "build/index.js",
@@ -8,10 +8,10 @@
     "start": "npm run build && node build/index.js",
     "dev": "tsc --watch"
   },
-  "keywords": ["mcp", "playwright", "demo", "recording", "social-media"],
+  "keywords": ["mcp", "playwright", "demo", "recording", "social-media", "video"],
   "author": "",
-  "license": "ISC",
-  "description": "MCP server for recording browser demos and generating social media posts",
+  "license": "MIT",
+  "description": "MCP server for recording browser demos with animated cursor and generating social media posts",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
     "fs-extra": "^11.3.0",
@@ -24,7 +24,7 @@
     "typescript": "^5.8.3"
   },
   "bin": {
-    "playwright-demo-recorder-mcp": "./build/index.js"
+    "demo-video-mcp": "./build/index.js"
   },
   "files": [
     "build"
